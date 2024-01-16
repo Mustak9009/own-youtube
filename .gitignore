@@ -138,6 +138,3 @@ dist
 # SvelteKit build / generate output
 .svelte-kit
 
-# Ignore 'js' file's
-JsClasses.js
-
