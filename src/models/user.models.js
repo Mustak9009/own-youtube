@@ -30,16 +30,16 @@ const userSchema = new mongoose.Schema({
         type:String,
         required:[true,"Please enter a password."],
     },
+    avaTar:{ //Below we store 'URLs' not -> image's data
+        type:String,
+        required:true
+    },
     watchHistory:[
         {
             type:mongoose.Schema.Types.ObjectId,
             ref:'Video'
         }
     ],
-    avaTar:{ //Below we store 'URLs' not -> image's data
-        type:String,
-        required:true
-    },
     coverImage:String,
     refreshToken:String,
 },{timestamps:true});
