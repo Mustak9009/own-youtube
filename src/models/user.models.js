@@ -10,11 +10,11 @@ const userSchema = new mongoose.Schema({
         trim:true,
         index:true //I'ts help DataBase searching
     },
-    userType:{
-        type:String,
-        enum:['USER','CREATOR'],
-        default:'USER'
-    },
+    // userType:{
+    //     type:String,
+    //     enum:['USER','CREATOR'],
+    //     default:'USER'
+    // },
     email:{
         type:String,
         required:true,
