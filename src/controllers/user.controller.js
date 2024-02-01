@@ -2,6 +2,7 @@ import {asyncHandler} from '../utils/asyncHandler.js';
 import {ApiError} from '../utils/apiErrorHandler.js';
 import {User} from '../models/user.models.js';
 import {uploadOnCloudinary} from '../utils/fileUploading.js';
+import { ApiResponse } from '../utils/apiResponse.js';
 export const registerUser = asyncHandler(async (req,res)=>{
     // Get user essential data : from user
     const {userName,email,fullName,password} = req.body;
@@ -21,15 +22,28 @@ export const registerUser = asyncHandler(async (req,res)=>{
     const avatarLocalPath = req.files?.avatar[0]?.path;
     const coverImageLocalPath = req.files?.coverImg[0]?.path;
 
-    if(!avatarLocalPath ||  !coverImageLocalPath){
-        throw new ApiError(400,"Images are required fields")
+    if(!avatarLocalPath){
+        throw new ApiError(400,"Avatar is required fields")
     }
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
-    if(!avatar || !coverImage){
-        throw new ApiError(400,"Something going wrong with image uploading...!!!")
+    if(!avatar){
+        throw new ApiError(400,"Something going wrong with avatar uploading...!!!")
     }
     //Upload in - DB(MongoDB)
-    res.status(201).json({message:"User created!!"})
+    const newUser = await User.create({
+        userName,
+        fullName,
+        password,
+        avatar:avatar.url,
+        coverImage:coverImage?.url || ''
+    }).select('-password -refreshToken');
+    if(!newUser){
+        throw new ApiError(500,"Something went wrong while registering the new user")
+    }
+    // return new ApiResponse(201,newUser,'created')
+    return res.status(201).json(
+        new ApiResponse(200,newUser,"User registred successfully")
+    )
 })
