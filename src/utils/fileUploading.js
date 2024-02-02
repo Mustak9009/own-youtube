@@ -6,15 +6,14 @@ cloudinary.config({
   api_key:process.env.CLOUDINARY_API_KEY  , 
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
-const uploadOnCloudinary = async (locaFilePath)=>{
+const uploadOnCloudinary = async (tempPath)=>{
     try{
-        if(!locaFilePath) return {error:'File path does not found...!!!'}
-        const res = await cloudinary.uploader.upload(locaFilePath,{resource_type:'auto'});
-        console.log("File uploading response: ",res);
+        if(!tempPath) return null;
+        const res = await cloudinary.uploader.upload(tempPath,{resource_type:'auto'});
+        fs.unlinkSync(tempPath);
         return res;
     }catch(err){
-        fs.unlinkSync(locaFilePath);
-        console.log(err);
+        fs.unlinkSync(tempPath);
         return null;
     }
 }
