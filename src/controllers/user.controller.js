@@ -48,4 +48,7 @@ export const registerUser = asyncHandler(async (req,res)=>{
     return res.status(201).json(
         new ApiResponse(200,{id:newUser._id,email:newUser.email},"User registred successfully")
     )
+});
+export const loginUser = asyncHandler(async (req,res)=>{
+    res.status(200).json("Ok")
 })
