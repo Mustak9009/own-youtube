@@ -50,5 +50,21 @@ export const registerUser = asyncHandler(async (req,res)=>{
     )
 });
 export const loginUser = asyncHandler(async (req,res)=>{
+    //Get data
+    //Cehck data
+    //search user
+    //compare password
+    //if find return true then false
+    const {userName,email,password} = req.body;
+    if([userName,email,password].some(field=>field.trim() === '')){
+        throw new ApiError(400,"All fields are required");
+    }
+
+    const user = await  User.findOne({$and:[{userName},{email}]}).select('password')
+    if(!user){
+        throw new ApiError(404,"User not found");
+    }
+    // const comparePasswod = await 
+    console.log(user)
     res.status(200).json("Ok")
 })
