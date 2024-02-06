@@ -3,6 +3,21 @@ import {ApiError} from '../utils/apiErrorHandler.js';
 import {User} from '../models/user.models.js';
 import {uploadOnCloudinary} from '../utils/fileUploading.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+const generateAccessAndRefereshTokens = async (userId)=>{
+    try {
+        const user = await User.findById(userId);
+        const accessToken = await user.generateAccessToken();
+        const refreshToken = await user.generateRefreshToken();
+        user.refreshToken = refreshToken;
+
+        await user.save({validateBeforeSave:false})
+
+        return {accessToken,refreshToken}
+    } catch (error) {
+        console.log(error);
+        throw new ApiError(500,"Something going wrong...!!!!");
+    }
+}
 export const registerUser = asyncHandler(async (req,res)=>{
     // Get user essential data : from user
     const {userName,email,fullName,password} = req.body;
@@ -55,6 +70,8 @@ export const loginUser = asyncHandler(async (req,res)=>{
     //search user
     //compare password
     //if find return true then false
+    //access and referesh token
+    //send cookie
     const {userName,email,password} = req.body;
     if([userName,email,password].some(field=>field.trim() === '')){
         throw new ApiError(400,"All fields are required");
@@ -65,6 +82,11 @@ export const loginUser = asyncHandler(async (req,res)=>{
         throw new ApiError(404,"User not found");
     }
     // const comparePasswod = await 
-    console.log(user)
+    const isPasswordValid = await user.isPasswordCorrect(password);
+    if(!isPasswordValid){
+        throw new ApiError(409,"User credentials doesn't match")
+    }
+    //Generates tokens
+    const {accessToken,refreshToken} = await generateAccessAndRefereshTokens(user._id);
     res.status(200).json("Ok")
 })
