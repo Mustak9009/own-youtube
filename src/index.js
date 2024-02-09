@@ -7,7 +7,7 @@ connectDB().then(()=>{
         throw err;
     });
     app.listen(process.env.PORT,()=>{
-        console.log('Server run at http://localhost:'+process.env.PORT);
+        console.log('Server run at http://localhost:'+process.env.PORT+'/api/v1/');
     })
 }).catch((err)=>{
     console.log('MongoDB Connection FAILD: ',err);

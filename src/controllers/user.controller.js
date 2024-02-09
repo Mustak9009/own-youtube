@@ -3,6 +3,12 @@ import {ApiError} from '../utils/apiErrorHandler.js';
 import {User} from '../models/user.models.js';
 import {uploadOnCloudinary} from '../utils/fileUploading.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+import jwt from 'jsonwebtoken';
+//Cookie options
+const options = {
+    httpOnly:true,
+    secure:true
+};
 const generateAccessAndRefereshTokens = async (userId)=>{
     try {
         const user = await User.findById(userId);
@@ -90,12 +96,7 @@ export const loginUser = asyncHandler(async (req,res)=>{
     const {accessToken,refreshToken} = await generateAccessAndRefereshTokens(user._id);
     //Loged user
     const logedUser = await User.findById(user._id).select('-password -refreshToken');
-
-    //Send - res
-    const options = {
-        httpOnly:true,
-        secure:true
-    };
+   
     return res.status(200)
     .cookie('accessToken',accessToken,options)
     .cookie('refereshToken',refreshToken,options)
@@ -105,5 +106,39 @@ export const loginUser = asyncHandler(async (req,res)=>{
 })
 
 export const logOutUser = asyncHandler(async (req,res)=>{
-    
+    await User.findByIdAndUpdate(req.user._id,{
+        $set:{
+            refreshToken:null
+        }
+    },{new:true})
+    return res.status(200)
+    .clearCookie('accessToken',options)
+    .clearCookie('refereshToken',options)
+    .json(new ApiResponse(200,{},"User logged out successfully"))
+})
+
+export const refereshAccessToken = asyncHandler(async (req,res)=>{
+  try {
+      const incommingRefereshToken = req.cookies.refereshToken || req.body.refereshToken;
+      if(!incommingRefereshToken){
+          throw new ApiError(401,"Unauthorized request..!!")
+      }
+      const decodeToken = jwt.verify(incommingRefereshToken,process.env.REFRESH_TOKEN_SECRET);
+      const user = await User.findById(decodeToken?.id);
+      if(!user){
+          throw new ApiError(401,"Invalid referesh token...!!")
+      }
+      if(incommingRefereshToken !== user?.refreshToken){
+          throw new ApiError(401,"Referesh token is expired..!!")
+      }
+      const {accessToken,refreshToken:newRefreshToken}  = await generateAccessAndRefereshTokens(decodeToken?.id)
+      return res.status(201)
+      .cookie('accessToken',accessToken,options)
+      .cookie('refereshToken',newRefreshToken,options)
+      .json(
+          new ApiResponse(201,{accessToken,refereshToken:newRefreshToken},"Access token refreshed")
+      )
+  } catch (error) {
+    throw new ApiError(401,error?.message || "Invalid request token..!!")
+  }
 })
