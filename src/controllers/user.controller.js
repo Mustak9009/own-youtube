@@ -145,7 +145,7 @@ export const refereshAccessToken = asyncHandler(async (req,res)=>{
 
 export const changeCurrentPassword = asyncHandler(async (req,res)=>{
     const {oldPassword,newPassword} = req.body;
-    const user = await User.findById(req.user?.id);  //req.user is comming from middleare -> auth.middleware.js -> verifyToken
+    const user = await User.findById(req.user?._id);  //req.user is comming from middleare -> auth.middleware.js -> verifyToken
     const isPasswordCorrect = user.isPasswordCorrect(oldPassword);
     if(!isPasswordCorrect){
         throw new ApiError(400,"Invalid old password")
@@ -160,4 +160,36 @@ export const changeCurrentPassword = asyncHandler(async (req,res)=>{
 export const getCurrentUser = asyncHandler(async (req,res)=>{
     return res.status(200)
     .json(new ApiResponse(200,req.user,"Ok!"))
+})
+
+export const changeUserDetails = asyncHandler(async (req,res)=>{
+    const {fullName,email} = req.body;
+    // let avatarLocalPath;
+    // let coverImageLocalPath;
+    // if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+    //     coverImageLocalPath = req.files.coverImage[0].path;
+    // }
+    // if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
+    //     avatarLocalPath = req.files.avatar[0].path;
+    // }
+    const avatarLocalPath = (req.files?.avatar?.[0]?.path) || undefined;
+    const coverImageLocalPath = (req.files?.coverImage?.[0]?.path) || undefined;
+   
+    const uploadAvatar = await uploadOnCloudinary(avatarLocalPath);
+    const uploadCoverImage = await uploadOnCloudinary(coverImageLocalPath);
+    
+    if(!(avatarLocalPath || coverImageLocalPath)){
+        throw new ApiError(400,"Error while uploading images")
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id,{
+        $set:{
+            fullName,
+            email,
+            avaTar:uploadAvatar?.url || req.user?.avaTar,
+            coverImage:uploadCoverImage?.url || req.user?.coverImage
+        }
+    },{new:true}).select('-password -refreshToken')
+    res.status(200)
+    .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
