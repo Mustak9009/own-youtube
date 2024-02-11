@@ -1,6 +1,6 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {ApiError} from '../utils/apiErrorHandler.js';
-import {User} from '../models/user.models.js';
+import {User} from '../models/user.model.js';
 import {uploadOnCloudinary} from '../utils/fileUploading.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import jwt from 'jsonwebtoken';
@@ -141,4 +141,23 @@ export const refereshAccessToken = asyncHandler(async (req,res)=>{
   } catch (error) {
     throw new ApiError(401,error?.message || "Invalid request token..!!")
   }
+})
+
+export const changeCurrentPassword = asyncHandler(async (req,res)=>{
+    const {oldPassword,newPassword} = req.body;
+    const user = await User.findById(req.user?.id);  //req.user is comming from middleare -> auth.middleware.js -> verifyToken
+    const isPasswordCorrect = user.isPasswordCorrect(oldPassword);
+    if(!isPasswordCorrect){
+        throw new ApiError(400,"Invalid old password")
+    }
+    user.password = newPassword;
+    user.save({validateBeforeSave:false});
+
+    return res.status(200)
+    .json(new ApiResponse(200,{},"Password changed successfully"))
+})
+
+export const getCurrentUser = asyncHandler(async (req,res)=>{
+    return res.status(200)
+    .json(new ApiResponse(200,req.user,"Ok!"))
 })
