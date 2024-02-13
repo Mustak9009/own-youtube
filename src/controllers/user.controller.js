@@ -1,7 +1,7 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {ApiError} from '../utils/apiErrorHandler.js';
 import {User} from '../models/user.model.js';
-import {uploadOnCloudinary} from '../utils/fileUploading.js';
+import {uploadOnCloudinary,removeFromCloudinary} from '../utils/fileUploading.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import jwt from 'jsonwebtoken';
 //Cookie options
@@ -173,7 +173,7 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
     //     avatarLocalPath = req.files.avatar[0].path;
     // }
     const avatarLocalPath = (req.files?.avatar?.[0]?.path) || undefined;
-    const coverImageLocalPath = (req.files?.coverImage?.[0]?.path) || undefined;
+    const coverImageLocalPath = (req.files?.coverImg?.[0]?.path) || undefined;
    
     const uploadAvatar = await uploadOnCloudinary(avatarLocalPath);
     const uploadCoverImage = await uploadOnCloudinary(coverImageLocalPath);
@@ -181,8 +181,12 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
     if(!(avatarLocalPath || coverImageLocalPath)){
         throw new ApiError(400,"Error while uploading images")
     }
+    //Delete old image first
+    const oldUser = await User.findById('65bd025da7242a899e834810')
+    await removeFromCloudinary(oldUser.avaTar)
+    await removeFromCloudinary(oldUser.coverImage) 
 
-    const user = await User.findByIdAndUpdate(req.user?._id,{
+    const user = await User.findByIdAndUpdate('65bd025da7242a899e834810',{
         $set:{
             fullName,
             email,
@@ -190,6 +194,7 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
             coverImage:uploadCoverImage?.url || req.user?.coverImage
         }
     },{new:true}).select('-password -refreshToken')
+    console.log(user);
     res.status(200)
     .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
