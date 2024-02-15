@@ -198,3 +198,72 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
     res.status(200)
     .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
+
+export const getUserChannelProfile = asyncHandler(async (req,res)=>{
+    const {userName} = req.params;
+    if(!userName?.trim()){
+        throw new ApiError(400,"User name is missing..!!")
+    }
+    const channel = await User.aggregate([
+        {
+            $match:{
+                userName:userName?.toLowerCase()
+            }
+        },
+        {
+            $lookup:{
+                from:'subcriptions',
+                foreignField:'channel',
+                localField:'_id',
+                as:"subscribers"
+            }
+        },
+        {
+            $lookup:{
+                from:'subcriptions',
+                foreignField:'subscriber',
+                localField:'_id',
+                as:"subscribedTo"
+            }
+        },
+        {
+            $addFields:{
+                subscribersCount:{
+                    $size:"$subscribers"
+                },
+                channelSucscribedToCount:{
+                    $size:"$subscribedTo"
+                },
+                isSubscribed:{
+                    $cond:{
+                        if:{
+                            $in:[req.user?.id,"$subscribers.subscriber"],
+                        },
+                        then:true,
+                        else:false
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                userName:1,
+                fullName:1,
+                subscribersCount:1,
+                channelSucscribedToCount:1,
+                isSubscribed:1,
+                avaTar:1,
+                coverImage:1
+            }
+        }
+    ])
+    console.log(channel);
+
+    if(!channel?.length){
+        throw new ApiError(404,"Channel does not exits..!!")
+    }
+    return res.status(200)
+    .json(
+        new ApiResponse(200,channel[0],"User channel fetched successfully...!!")
+    )
+})
