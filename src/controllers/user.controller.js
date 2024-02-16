@@ -4,6 +4,7 @@ import {User} from '../models/user.model.js';
 import {uploadOnCloudinary,removeFromCloudinary} from '../utils/fileUploading.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 //Cookie options
 const options = {
     httpOnly:true,
@@ -105,7 +106,8 @@ export const loginUser = asyncHandler(async (req,res)=>{
     },'User loged in sucessfully'));
 })
 
-export const logOutUser = asyncHandler(async (req,res)=>{
+export const logOutUser = asyncHandler(async (req,res)=>{ 
+    console.log(req.user.id)
     await User.findByIdAndUpdate(req.user._id,{
         $set:{
             refreshToken:null
@@ -120,6 +122,7 @@ export const logOutUser = asyncHandler(async (req,res)=>{
 export const refereshAccessToken = asyncHandler(async (req,res)=>{
   try {
       const incommingRefereshToken = req.cookies.refereshToken || req.body.refereshToken;
+      console.log(incommingRefereshToken)
       if(!incommingRefereshToken){
           throw new ApiError(401,"Unauthorized request..!!")
       }
@@ -145,8 +148,9 @@ export const refereshAccessToken = asyncHandler(async (req,res)=>{
 
 export const changeCurrentPassword = asyncHandler(async (req,res)=>{
     const {oldPassword,newPassword} = req.body;
-    const user = await User.findById(req.user?._id);  //req.user is comming from middleare -> auth.middleware.js -> verifyToken
-    const isPasswordCorrect = user.isPasswordCorrect(oldPassword);
+    const user = await User.findById(req.user?.id);  //req.user is comming from middleare -> auth.middleware.js -> verifyToken
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
     if(!isPasswordCorrect){
         throw new ApiError(400,"Invalid old password")
     }
@@ -173,7 +177,7 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
     //     avatarLocalPath = req.files.avatar[0].path;
     // }
     const avatarLocalPath = (req.files?.avatar?.[0]?.path) || undefined;
-    const coverImageLocalPath = (req.files?.coverImg?.[0]?.path) || undefined;
+    const coverImageLocalPath = (req.files?.coverImage?.[0]?.path) || undefined;
    
     const uploadAvatar = await uploadOnCloudinary(avatarLocalPath);
     const uploadCoverImage = await uploadOnCloudinary(coverImageLocalPath);
@@ -182,19 +186,18 @@ export const changeUserDetails = asyncHandler(async (req,res)=>{
         throw new ApiError(400,"Error while uploading images")
     }
     //Delete old image first
-    const oldUser = await User.findById('65bd025da7242a899e834810')
+    const oldUser = await User.findById(req.user.id)
     await removeFromCloudinary(oldUser.avaTar)
     await removeFromCloudinary(oldUser.coverImage) 
 
-    const user = await User.findByIdAndUpdate('65bd025da7242a899e834810',{
+    const user = await User.findByIdAndUpdate(req.user.id,{
         $set:{
             fullName,
             email,
-            avaTar:uploadAvatar?.url || req.user?.avaTar,
-            coverImage:uploadCoverImage?.url || req.user?.coverImage
+            avaTar:uploadAvatar?.url || oldUser.avaTar,
+            coverImage:uploadCoverImage?.url || oldUser.coverImage
         }
     },{new:true}).select('-password -refreshToken')
-    console.log(user);
     res.status(200)
     .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
@@ -258,6 +261,7 @@ export const getUserChannelProfile = asyncHandler(async (req,res)=>{
         }
     ])
     console.log(channel);
+    // console.log(User.aggregate())
 
     if(!channel?.length){
         throw new ApiError(404,"Channel does not exits..!!")
@@ -265,5 +269,54 @@ export const getUserChannelProfile = asyncHandler(async (req,res)=>{
     return res.status(200)
     .json(
         new ApiResponse(200,channel[0],"User channel fetched successfully...!!")
+    )
+})
+
+export const getUserWatchHistory = asyncHandler(async (req,res)=>{
+    const user = await User.aggregate([
+        {
+            $match:{
+                _id:new mongoose.Types.ObjectId(req.user.id)
+            }
+        },
+        {
+            $lookup:{
+                from:'videos',
+                foreignField:'_id',
+                localField:'watchHistory',
+                as:"watchHistory",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from:'users',
+                            foreignField:'_id',
+                            localField:'owner',
+                            as:"owner",
+                            pipeline:[
+                                {
+                                    $project:{
+                                        userName:1,
+                                        fullName:1,
+                                        avaTar:1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                $first:"$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]);
+    console.log(user)
+    return res.status(200)
+    .json(
+        new ApiResponse(200,user[0].watchHistory,'Watch history fetched successfully..!!')
     )
 })
